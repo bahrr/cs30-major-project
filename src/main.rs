@@ -1,34 +1,33 @@
 use std::fs;
 use std::str;
-use std::path::Path;
 
 // A WAD is the primary way that Doom and it's source ports store data
 struct Wad {
     // Header of the WAD file, used for identifying details
-    identification: bool, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
+    identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
     numlumps: u32, // Gets the size of the WAD in lumps
-    infotableofs: u32, // Pointer to the location of directory
 }
 
 impl Wad {
-    fn is_iwad(&self) {
-        println!("{}, {}, {}",
-            self.identification,
-            self.numlumps,
-            self.infotableofs
-        );
+    // Loads the file into a struct
+    fn load(path: &str) -> Wad {
+        // Opens the file
+        let file = fs::read(path)
+            .expect("File might not exist or some other problem opening it");
+
+        let wad_id = str::from_utf8(&file[0..4])
+            .expect("Header not valid");
+
+        return Wad {
+            identification: wad_id.to_string(),
+            numlumps: file[4..8],
+        }
     }
 }
 
-fn check_wad_type(file_path: &Path) -> String {
-    let wad_file = fs::read(file_path).unwrap();
-    return match String::from_utf8(wad_file[0..4].to_vec()) {
-        Ok(result) => result,
-        Err(error) => panic!("Problem with converting file: {}", error),
-    };
-}
 fn main() {
-    let path = Path::new("assets/freedoom1.wad");
-    let wad = check_wad_type(path);
-    println!("{}", wad);
+    let iwad = Wad::load("assets/freedoom.wad");
+
+    // Just quickly reads out the IWAD's header
+    println!("{}, {}", iwad.identification, iwad.numlumps);
 }
