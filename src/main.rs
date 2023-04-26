@@ -1,5 +1,8 @@
 use std::fs;
 use std::str;
+use byteorder::ByteOrder;
+use byteorder::LittleEndian;
+use std::env;
 
 // A WAD is the primary way that Doom and it's source ports store data
 struct Wad {
@@ -18,15 +21,21 @@ impl Wad {
         let wad_id = str::from_utf8(&file[0..4])
             .expect("Header not valid");
 
+        let numlumps = <LittleEndian as ByteOrder>::read_u32(&file[4..8]);
+
+        // Points to where the directory which keeps track of lumps is
+        let info_table = <LittleEndian as ByteOrder>::read_u32(&file[8..12]);
+
+
         return Wad {
             identification: wad_id.to_string(),
-            numlumps: file[4..8],
+            numlumps: numlumps,
         }
     }
 }
 
 fn main() {
-    let iwad = Wad::load("assets/freedoom.wad");
+    let iwad = Wad::load("freedoom1.wad");
 
     // Just quickly reads out the IWAD's header
     println!("{}, {}", iwad.identification, iwad.numlumps);
