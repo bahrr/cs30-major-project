@@ -10,17 +10,19 @@ struct Wad {
     // Header of the WAD file, used for identifying details
     identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
 
-    lumps: HashMap<String, Lump>, // List of all the lumps
+    lumps: Vec<Lump>, // List of all the lumps
 }
 
 // A lump is the basic container for files in a WAD
 struct Lump {
+    name: String,
     data: Data,
 }
 
 // Enum to store the types of data
 enum Data {
-   BspMap(BspMap),
+    MapHeader,
+    Things(Vec<Thing>),
 }
 
 // Struct which stores Doom maps
@@ -28,6 +30,27 @@ struct  BspMap {
 
 }
 
+// Things are 2d objects like monsters or items
+struct Thing {
+    x: i16,
+    y: i16,
+    angle: i16,
+    thing_type: ThingType,
+
+    // Keeps track of if the thing exists in a particular difficulty
+    // or exists in multiplayer
+    easy: bool,
+    medium: bool,
+    hard: bool,
+    multiplayer: bool,
+
+    // Is the monster waiting for an ambush later on
+    ambush: bool
+}
+
+// Keeps track of what type of thing it is
+enum ThingType {
+}
 
 impl Wad {
     // Loads the file into a struct
@@ -44,7 +67,7 @@ impl Wad {
         // Points to where the directory which keeps track of lumps is
         let info_table = <LittleEndian as ByteOrder>::read_u32(&file[8..12]);
 
-        let mut lumps: HashMap<String, Lump> = HashMap::new();
+        let mut lumps: Vec<Lump> = Vec::new();
 
         // Appends the lump vector with lumps obtained from the WAD
         for i in 0..numlumps {
@@ -60,9 +83,10 @@ impl Wad {
             // The name of the lump
             let lump_name = str::from_utf8(&file[dir_loc+8..dir_loc+16])
                 .unwrap();
-
-            println!("{lump_name}");
-
+            
+            let raw_bytes = file[lump_pos..lump_pos + lump_size];
+            lumps.push(Lump::load(lump_name, raw_bytes));
+            println!("{lump_name}, {lump_size}, {lump_pos}");
         }
 
         Wad {
@@ -70,6 +94,12 @@ impl Wad {
             lumps,
         }
     }
+}
+
+impl Lump {
+   fn load(name: &str, data: &[u8]) -> Lump {
+
+   }
 }
 
 fn main() {

@@ -9,7 +9,8 @@ Renders Doom Maps in Rust
 - [x] Should be in Rust
 - [ ] Read WAD files
   - [x] Get WAD header working
-  - [ ] Convert directory to array of lumps
+  - [ ] Convert directory to vector of lumps
+  - [ ] Convert every lump type into a struct
 - [ ] Render maps using some 3d graphics library
   - [ ] Convert sidedefs, sectors, and things into triangles so that modern graphics APIs can use them
     - [ ] If the graphics library doesn't have triangulation, I'll probably end up using the ear clipping method
