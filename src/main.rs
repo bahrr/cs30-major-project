@@ -1,5 +1,7 @@
+use core::num;
 use std::fs;
 use std::str;
+use std::collections::HashMap;
 use byteorder::ByteOrder;
 use byteorder::LittleEndian;
 
@@ -7,16 +9,25 @@ use byteorder::LittleEndian;
 struct Wad {
     // Header of the WAD file, used for identifying details
     identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
-    numlumps: u32, // Gets the size of the WAD in lumps
 
-    lumps: Vec<Lump>, // List of all the lumps
+    lumps: HashMap<String, Lump>, // List of all the lumps
 }
 
 // A lump is the basic container for files in a WAD
 struct Lump {
+    data: Data,
+}
 
+// Enum to store the types of data
+enum Data {
+   BspMap(BspMap),
+}
+
+// Struct which stores Doom maps
+struct  BspMap {
 
 }
+
 
 impl Wad {
     // Loads the file into a struct
@@ -33,7 +44,7 @@ impl Wad {
         // Points to where the directory which keeps track of lumps is
         let info_table = <LittleEndian as ByteOrder>::read_u32(&file[8..12]);
 
-        let mut lumps:Vec<Lump> = Vec::new();
+        let mut lumps: HashMap<String, Lump> = HashMap::new();
 
         // Appends the lump vector with lumps obtained from the WAD
         for i in 0..numlumps {
@@ -51,12 +62,11 @@ impl Wad {
                 .unwrap();
 
             println!("{lump_name}");
+
         }
 
         Wad {
             identification: wad_id.to_string(),
-            numlumps,
-
             lumps,
         }
     }
@@ -66,5 +76,5 @@ fn main() {
     let iwad = Wad::load("assets/freedoom1.wad");
 
     // Just quickly reads out the IWAD's header
-    println!("{}, {}", iwad.identification, iwad.numlumps);
+    println!("{}", iwad.identification);
 }
