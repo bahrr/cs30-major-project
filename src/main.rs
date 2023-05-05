@@ -1,16 +1,13 @@
-use core::num;
 use std::fs;
 use std::str;
-use std::collections::HashMap;
 use byteorder::ByteOrder;
 use byteorder::LittleEndian;
-use glob::glob;
 
 // A WAD is the primary way that Doom and it's source ports store data
 
-struct Wad<'a> {
+struct Wad {
     // Header of the WAD file, used for identifying details
-    identification: &'a str, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
+    identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
 
     maps: Vec<BspMap>,
 }
@@ -45,14 +42,14 @@ struct Thing {
 enum ThingType {
 }
 
-impl<'a> Wad<'a> {
+impl Wad {
     // Loads the file into a struct
     fn load(path: &str) -> Wad {
         // Opens the file
         let file = fs::read(path)
             .expect("File might not exist or some other problem opening it");
 
-        let wad_id = &str::from_utf8(&file[0..4])
+        let wad_id = String::from_utf8(file[0..4].to_vec())
             .expect("Header not valid");
 
         let num_of_lumps = <LittleEndian as ByteOrder>::read_u32(&file[4..8]);
