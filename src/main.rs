@@ -2,9 +2,9 @@ use std::fs;
 use std::str;
 use byteorder::ByteOrder;
 use byteorder::LittleEndian;
+use std::f64::consts;
 
 // A WAD is the primary way that Doom and it's source ports store data
-
 struct Wad {
     // Header of the WAD file, used for identifying details
     identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
@@ -27,7 +27,7 @@ struct Lump {
 struct Thing {
     x: i16,
     y: i16,
-    angle: i16,
+    float: i16,
     thing_type: ThingType,
 
     // Keeps track of if the thing exists in a particular difficulty
@@ -43,6 +43,7 @@ struct Thing {
 
 // Keeps track of what type of thing it is
 enum ThingType {
+    Barrel,
 }
 
 impl Wad {
@@ -61,7 +62,7 @@ impl Wad {
         let info_table = <LittleEndian as ByteOrder>::read_u32(&file[8..12]);
 
         let mut lumps: Vec<Lump> = Vec::new(); // Stores the raw lumps to go over in a list
-        let mut maps:Vec<BspMap> = Vec::new(); // Stores the game maps
+        let mut maps: Vec<BspMap> = Vec::new(); // Stores the game maps
 
         // Appends the lump vector with lumps obtained from the WAD
         for i in 0..num_of_lumps {
@@ -91,10 +92,11 @@ impl Wad {
         while lump_name != "PLAYPAL\0" { // PLAYPAL with a null character happens to be the first non map lump in a WAD file
             println!("{lump_name}");
 
-            let mut map_lumps: [Vec<u8>; 11];
+            let mut map_lumps: Vec<Vec<u8>> = Vec::new();
             for j in i..i+11 {
-                // TODO: make array of map lumps to make it easier for the function to work
+                map_lumps.push(lumps[j].data.clone());
             }
+            maps.push(BspMap::new(&map_lumps));
             i += 11;
             lump_name = lumps[i].name.as_str();
         }
@@ -108,11 +110,34 @@ impl Wad {
 }
 
 impl BspMap {
-    fn new(data: &[Vec<u8>]) -> BspMap {
-
-        BspMap { things: vec![] 
+    fn new(data: &Vec<Vec<u8>>) -> BspMap {
+        let things: Vec<Thing> = Thing::from_bytes(&data[1]);
+        BspMap { things,
          }
     } 
+}
+
+impl Thing {
+    fn from_bytes(data: &Vec<u8>) -> Vec<Thing> {
+        let mut things: Vec<Thing> = Vec::new();
+
+        // Adds things to the vector
+        for i in 0..data.len() {
+            // The offset of the thing in bytes
+            let thing_loc: usize = i * 10;
+
+            // Gets the x and y of the thing
+            let x = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc..thing_loc+2]);
+            let y = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
+
+            // Converts the angle to a radian value as Doom's engine stored the angle as a 16 bit int
+            // which went from 0 to 2^32 - 1 to form a circle
+            let file_angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
+            let angle = consts::PI * file_angle as f64 / 32768.0;
+        }
+
+        return things;
+    }
 }
 
 
