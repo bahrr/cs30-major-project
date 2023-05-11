@@ -28,7 +28,7 @@ struct Thing {
     x: i16,
     y: i16,
     float: i16,
-    thing_type: ThingType,
+    thing_type: u16,
 
     // Keeps track of if the thing exists in a particular difficulty
     // or exists in multiplayer
@@ -120,9 +120,8 @@ impl BspMap {
 impl Thing {
     fn from_bytes(data: &Vec<u8>) -> Vec<Thing> {
         let mut things: Vec<Thing> = Vec::new();
-
         // Adds things to the vector
-        for i in 0..data.len() {
+        for i in 0..(data.len() / 10) {
             // The offset of the thing in bytes
             let thing_loc: usize = i * 10;
 
@@ -134,6 +133,9 @@ impl Thing {
             // which went from 0 to 2^32 - 1 to form a circle
             let file_angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
             let angle = consts::PI * file_angle as f64 / 32768.0;
+
+            // Gets the type of the thing
+            let thing_type = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]);
         }
 
         return things;
