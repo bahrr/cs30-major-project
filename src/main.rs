@@ -129,13 +129,20 @@ impl Thing {
             let x = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc..thing_loc+2]);
             let y = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
 
-            // Converts the angle to a radian value as Doom's engine stored the angle as a 16 bit int
-            // which went from 0 to 2^32 - 1 to form a circle
-            let file_angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
-            let angle = consts::PI * file_angle as f64 / 32768.0;
+            // Convieniently Doom stores angles as degrees
+            let angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]) as f64;
 
             // Gets the type of the thing
-            let thing_type = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]);
+            let thing_type = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+6..thing_loc+8]);
+            
+            // Gets the bytes used for the flags
+            let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+8..thing_loc+10]);
+
+            // Rust doesn't really support bits so I have to use modulos to convert the bytes to booleans
+            let easy = int_flags % 2 == 1;
+            let medium = int_flags % 4 != 0;
+
+            println!("{x}, {y}, {angle}, {thing_type}, {easy}, {medium}");
         }
 
         return things;
