@@ -2,7 +2,11 @@ use std::fs;
 use std::str;
 use byteorder::ByteOrder;
 use byteorder::LittleEndian;
-use std::f64::consts;
+
+// Reads the bit at the index and returns it as a bool
+fn bool_from_u16(int: u16, index: u32) -> bool {
+    return int % u16::pow(2, index + 1) != 0;
+}
 
 // A WAD is the primary way that Doom and it's source ports store data
 struct Wad {
@@ -14,6 +18,7 @@ struct Wad {
 // Struct which stores Doom maps
 struct  BspMap {
     things: Vec<Thing>,
+    linedefs: Vec<LineDef>,
 }
 
 // Holds onto raw lump data
@@ -25,9 +30,9 @@ struct Lump {
 }
 // Things are 2d objects like monsters or items
 struct Thing {
-    x: i16,
-    y: i16,
-    float: i16,
+    x: u16,
+    y: u16,
+    angle: u16,
     thing_type: u16,
 
     // Keeps track of if the thing exists in a particular difficulty
@@ -44,6 +49,11 @@ struct Thing {
 // Keeps track of what type of thing it is
 enum ThingType {
     Barrel,
+}
+
+// Line as well as flags which activate it
+struct LineDef {
+
 }
 
 impl Wad {
@@ -90,8 +100,6 @@ impl Wad {
         let mut lump_name = lumps[0].name.as_str();
 
         while lump_name != "PLAYPAL\0" { // PLAYPAL with a null character happens to be the first non map lump in a WAD file
-            println!("{lump_name}");
-
             let mut map_lumps: Vec<Vec<u8>> = Vec::new();
             for j in i..i+11 {
                 map_lumps.push(lumps[j].data.clone());
@@ -112,7 +120,9 @@ impl Wad {
 impl BspMap {
     fn new(data: &Vec<Vec<u8>>) -> BspMap {
         let things: Vec<Thing> = Thing::from_bytes(&data[1]);
+        let linedefs: Vec<LineDef> = LineDef::from_bytes(&data[2]);
         BspMap { things,
+            linedefs
          }
     } 
 }
@@ -130,7 +140,7 @@ impl Thing {
             let y = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
 
             // Convieniently Doom stores angles as degrees
-            let angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]) as f64;
+            let angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]);
 
             // Gets the type of the thing
             let thing_type = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+6..thing_loc+8]);
@@ -138,17 +148,54 @@ impl Thing {
             // Gets the bytes used for the flags
             let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+8..thing_loc+10]);
 
-            // Rust doesn't really support bits so I have to use modulos to convert the bytes to booleans
-            let easy = int_flags % 2 == 1;
-            let medium = int_flags % 4 != 0;
+            // Rust doesn't really support bits so I have to use a function I wrote to convert the bytes to booleans
+            let easy = bool_from_u16(int_flags, 0);
+            let medium = bool_from_u16(int_flags, 1);
+            let hard = bool_from_u16(int_flags, 2);
+            let ambush = bool_from_u16(int_flags, 3);
+            let multiplayer = bool_from_u16(int_flags, 4);
 
-            println!("{x}, {y}, {angle}, {thing_type}, {easy}, {medium}");
+            // Finally pushes the data into a Thing object
+            things.push(Thing {
+                x,
+                y,
+                angle,
+                easy,
+                hard,
+                thing_type,
+                medium,
+                multiplayer,
+                ambush,
+            })
         }
 
         return things;
     }
 }
 
+impl LineDef {
+    // Gets a vector of LineDefs
+    fn from_bytes(data: &Vec<u8>) -> Vec<LineDef> {
+        let mut linedefs: Vec<LineDef> = Vec::new();
+
+        for i in 0..(data.len() / 14) {
+            // Offset of the linedef in bytes
+            let linedef_loc: usize = i * 14;
+
+            // Gets indexes of the vertices
+            let start = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc..linedef_loc+2]);
+            let end = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc+2..linedef_loc+4]);
+
+            // Gets the flags to be converted as an int
+            let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc+4..linedef_loc+6]);
+
+
+            println!("{start}, {end}");
+        }
+
+        return  linedefs;
+    }
+}
 
 fn main() {
     Wad::load("assets/freedoom1.wad");
