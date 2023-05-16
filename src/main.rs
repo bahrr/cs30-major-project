@@ -2,6 +2,7 @@ use std::fs;
 use std::str;
 use byteorder::ByteOrder;
 use byteorder::LittleEndian;
+use std::collections::HashMap;
 
 // Reads the bit at the index and returns it as a bool
 fn bool_from_u16(int: u16, index: u32) -> bool {
@@ -13,12 +14,13 @@ struct Wad {
     // Header of the WAD file, used for identifying details
     identification: String, // Identifies the WAD as either an IWAD for the base game or a PWAD for a mod
 
-    maps: Vec<BspMap>,
+    maps: HashMap<String, BspMap>,
 }
 // Struct which stores Doom maps
 struct  BspMap {
     things: Vec<Thing>,
     linedefs: Vec<LineDef>,
+    sidedefs: Vec<SideDef>,
 }
 
 // Holds onto raw lump data
@@ -30,10 +32,10 @@ struct Lump {
 }
 // Things are 2d objects like monsters or items
 struct Thing {
-    x: u16,
-    y: u16,
-    angle: u16,
-    thing_type: u16,
+    x: i16,
+    y: i16,
+    angle: i16,
+    thing_type: i16,
 
     // Keeps track of if the thing exists in a particular difficulty
     // or exists in multiplayer
@@ -46,14 +48,49 @@ struct Thing {
     ambush: bool
 }
 
-// Keeps track of what type of thing it is
-enum ThingType {
-    Barrel,
-}
-
 // Line as well as flags which activate it
 struct LineDef {
+    // Indexes of the vertices on both ends
+    start: i16,
+    end: i16,
 
+    // Flags
+    block_players_and_monsters: bool,
+    block_monsters: bool,
+
+    two_sided: bool, // If the linedef is 2 sided and seperates 2 sectors
+    
+    // "Pegs" the texture to a point on the linedef
+    upper_unpegged: bool,
+    lower_unpegged: bool,
+
+    secret: bool,
+    block_sound: bool,
+
+    never_automap: bool,
+    always_automap: bool,
+
+    special_type: i16, // What type of linedef is it
+    sector_tag: i16, // What sector is it a part of
+    
+    // Indexes of the sidedefs
+    front_sidedef: i16,
+    back_sidedef: i16,
+}
+
+// Contains the indexes to the textures used by a linedef
+struct SideDef {
+    // Offsets of the texture
+    x_offset: i16,
+    y_offset: i16,
+
+    // Names of the textures used
+    upper_texture: String,
+    lower_texture: String,
+    middle_texture: String,
+
+    // What sector the sidedef faces
+    facing_sector: i16,
 }
 
 impl Wad {
@@ -72,7 +109,7 @@ impl Wad {
         let info_table = <LittleEndian as ByteOrder>::read_u32(&file[8..12]);
 
         let mut lumps: Vec<Lump> = Vec::new(); // Stores the raw lumps to go over in a list
-        let mut maps: Vec<BspMap> = Vec::new(); // Stores the game maps
+        let mut maps: HashMap<String, BspMap> = HashMap::new(); // Stores the game maps
 
         // Appends the lump vector with lumps obtained from the WAD
         for i in 0..num_of_lumps {
@@ -97,16 +134,17 @@ impl Wad {
         
         // Goes over map lumps to convert into something usable for a renderer
         let mut i = 0;
-        let mut lump_name = lumps[0].name.as_str();
+        let mut lump_name = lumps[0].name.clone();
 
-        while lump_name != "PLAYPAL\0" { // PLAYPAL with a null character happens to be the first non map lump in a WAD file
+        while &lump_name.as_str() != &"PLAYPAL\0" { // PLAYPAL with a null character happens to be the first non map lump in a WAD file
             let mut map_lumps: Vec<Vec<u8>> = Vec::new();
             for j in i..i+11 {
                 map_lumps.push(lumps[j].data.clone());
             }
-            maps.push(BspMap::new(&map_lumps));
+            maps.insert(lump_name, BspMap::new(&map_lumps));
+            // maps.push(BspMap::new(&map_lumps));
             i += 11;
-            lump_name = lumps[i].name.as_str();
+            lump_name = lumps[i].name.clone();
         }
 
         Wad {
@@ -121,8 +159,11 @@ impl BspMap {
     fn new(data: &Vec<Vec<u8>>) -> BspMap {
         let things: Vec<Thing> = Thing::from_bytes(&data[1]);
         let linedefs: Vec<LineDef> = LineDef::from_bytes(&data[2]);
-        BspMap { things,
-            linedefs
+        let sidedefs: Vec<SideDef> = SideDef::from_bytes(&data[3]);
+        BspMap {
+            things,
+            linedefs,
+            sidedefs
          }
     } 
 }
@@ -136,14 +177,14 @@ impl Thing {
             let thing_loc: usize = i * 10;
 
             // Gets the x and y of the thing
-            let x = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc..thing_loc+2]);
-            let y = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+2..thing_loc+4]);
+            let x = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc..thing_loc+2]);
+            let y = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc+2..thing_loc+4]);
 
             // Convieniently Doom stores angles as degrees
-            let angle = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+4..thing_loc+6]);
+            let angle = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc+4..thing_loc+6]);
 
             // Gets the type of the thing
-            let thing_type = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+6..thing_loc+8]);
+            let thing_type = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc+6..thing_loc+8]);
             
             // Gets the bytes used for the flags
             let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+8..thing_loc+10]);
@@ -183,17 +224,60 @@ impl LineDef {
             let linedef_loc: usize = i * 14;
 
             // Gets indexes of the vertices
-            let start = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc..linedef_loc+2]);
-            let end = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc+2..linedef_loc+4]);
+            let start = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc..linedef_loc+2]);
+            let end = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+2..linedef_loc+4]);
 
-            // Gets the flags to be converted as an int
+            // Gets the flags to be converted as an int and converts it into booleans
             let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc+4..linedef_loc+6]);
 
+            let block_players_and_monsters = bool_from_u16(int_flags, 0);
+            let block_monsters = bool_from_u16(int_flags, 1);
+            let two_sided = bool_from_u16(int_flags, 2);
+            let upper_unpegged = bool_from_u16(int_flags, 3);
+            let lower_unpegged = bool_from_u16(int_flags, 4);
+            let secret = bool_from_u16(int_flags, 5);
+            let block_sound = bool_from_u16(int_flags, 6);
+            let never_automap = bool_from_u16(int_flags, 7);
+            let always_automap = bool_from_u16(int_flags, 8);
 
-            println!("{start}, {end}");
+            //  What type of linedef is it
+            let special_type = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+6..linedef_loc+8]);
+
+            // Index of the sector
+            let sector_tag = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+8..linedef_loc+10]);
+
+            // Get the indexes of the sidedefs
+            let front_sidedef = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+10..linedef_loc+12]);
+            let back_sidedef = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+12..linedef_loc+14]);
+
+            linedefs.push(LineDef {
+                start,
+                end,
+                block_players_and_monsters,
+                block_monsters,
+                two_sided,
+                upper_unpegged,
+                lower_unpegged,
+                secret,
+                block_sound,
+                never_automap,
+                always_automap,
+                special_type,
+                sector_tag,
+                front_sidedef,
+                back_sidedef,
+            });
         }
 
         return  linedefs;
+    }
+}
+
+impl SideDef {
+    fn from_bytes(data: &Vec<u8>) -> Vec<SideDef> {
+        let mut sidedefs: Vec<SideDef> = Vec::new();
+
+        return sidedefs;
     }
 }
 
