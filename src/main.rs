@@ -5,8 +5,8 @@ use byteorder::LittleEndian;
 use std::collections::HashMap;
 
 // Reads the bit at the index and returns it as a bool
-fn bool_from_u16(int: u16, index: u32) -> bool {
-    return int % u16::pow(2, index + 1) != 0;
+fn bool_from_i16(int: i16, index: u32) -> bool {
+    return int % i16::pow(2, index + 1) != 0;
 }
 
 // A WAD is the primary way that Doom and it's source ports store data
@@ -16,11 +16,13 @@ struct Wad {
 
     maps: HashMap<String, BspMap>,
 }
+
 // Struct which stores Doom maps
 struct  BspMap {
     things: Vec<Thing>,
     linedefs: Vec<LineDef>,
     sidedefs: Vec<SideDef>,
+    vertices: Vec<Vertex>,
 }
 
 // Holds onto raw lump data
@@ -93,6 +95,21 @@ struct SideDef {
     facing_sector: i16,
 }
 
+// Might as well make it easy to access the coordinates as x and y
+struct Vertex {
+    x: i16,
+    y: i16,
+}
+
+//  A Seg is a segment of a linedef which is used to build a subsector
+struct Seg {
+    // Start and end vertices
+    start: i16,
+    end: i16,
+
+    // Angle in radians
+    angle: f64,
+}
 impl Wad {
     // Loads the file into a struct
     fn load(path: &str) -> Wad {
@@ -160,10 +177,12 @@ impl BspMap {
         let things: Vec<Thing> = Thing::from_bytes(&data[1]);
         let linedefs: Vec<LineDef> = LineDef::from_bytes(&data[2]);
         let sidedefs: Vec<SideDef> = SideDef::from_bytes(&data[3]);
+        let vertices: Vec<Vertex> = Vertex::from_bytes(&data[4]);
         BspMap {
             things,
             linedefs,
-            sidedefs
+            sidedefs,
+            vertices,
          }
     } 
 }
@@ -187,14 +206,14 @@ impl Thing {
             let thing_type = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc+6..thing_loc+8]);
             
             // Gets the bytes used for the flags
-            let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[thing_loc+8..thing_loc+10]);
+            let int_flags = <LittleEndian as ByteOrder>::read_i16(&data[thing_loc+8..thing_loc+10]);
 
             // Rust doesn't really support bits so I have to use a function I wrote to convert the bytes to booleans
-            let easy = bool_from_u16(int_flags, 0);
-            let medium = bool_from_u16(int_flags, 1);
-            let hard = bool_from_u16(int_flags, 2);
-            let ambush = bool_from_u16(int_flags, 3);
-            let multiplayer = bool_from_u16(int_flags, 4);
+            let easy = bool_from_i16(int_flags, 0);
+            let medium = bool_from_i16(int_flags, 1);
+            let hard = bool_from_i16(int_flags, 2);
+            let ambush = bool_from_i16(int_flags, 3);
+            let multiplayer = bool_from_i16(int_flags, 4);
 
             // Finally pushes the data into a Thing object
             things.push(Thing {
@@ -228,17 +247,17 @@ impl LineDef {
             let end = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+2..linedef_loc+4]);
 
             // Gets the flags to be converted as an int and converts it into booleans
-            let int_flags = <LittleEndian as ByteOrder>::read_u16(&data[linedef_loc+4..linedef_loc+6]);
+            let int_flags = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+4..linedef_loc+6]);
 
-            let block_players_and_monsters = bool_from_u16(int_flags, 0);
-            let block_monsters = bool_from_u16(int_flags, 1);
-            let two_sided = bool_from_u16(int_flags, 2);
-            let upper_unpegged = bool_from_u16(int_flags, 3);
-            let lower_unpegged = bool_from_u16(int_flags, 4);
-            let secret = bool_from_u16(int_flags, 5);
-            let block_sound = bool_from_u16(int_flags, 6);
-            let never_automap = bool_from_u16(int_flags, 7);
-            let always_automap = bool_from_u16(int_flags, 8);
+            let block_players_and_monsters = bool_from_i16(int_flags, 0);
+            let block_monsters = bool_from_i16(int_flags, 1);
+            let two_sided = bool_from_i16(int_flags, 2);
+            let upper_unpegged = bool_from_i16(int_flags, 3);
+            let lower_unpegged = bool_from_i16(int_flags, 4);
+            let secret = bool_from_i16(int_flags, 5);
+            let block_sound = bool_from_i16(int_flags, 6);
+            let never_automap = bool_from_i16(int_flags, 7);
+            let always_automap = bool_from_i16(int_flags, 8);
 
             //  What type of linedef is it
             let special_type = <LittleEndian as ByteOrder>::read_i16(&data[linedef_loc+6..linedef_loc+8]);
@@ -277,10 +296,58 @@ impl SideDef {
     fn from_bytes(data: &Vec<u8>) -> Vec<SideDef> {
         let mut sidedefs: Vec<SideDef> = Vec::new();
 
+        for i in 0..(data.len() / 30) {
+            // Location of the sidedef in the data
+            let sidedef_loc: usize = i * 30;
+
+            // Offsets of the texture
+            let x_offset = <LittleEndian as ByteOrder>::read_i16(&data[sidedef_loc..sidedef_loc+2]);
+            let y_offset = <LittleEndian as ByteOrder>::read_i16(&data[sidedef_loc+2..sidedef_loc+4]);
+
+            // Gets the names of the textures used
+            let upper_texture = String::from_utf8(data[sidedef_loc+4..sidedef_loc+12].to_vec())
+                .expect("invalid upper texture");
+            let lower_texture = String::from_utf8(data[sidedef_loc+12..sidedef_loc+20].to_vec())
+                .expect("invalid upper texture");
+            let middle_texture = String::from_utf8(data[sidedef_loc+20..sidedef_loc+28].to_vec())
+                .expect("invalid upper texture");
+
+            // What sector the sidedef faces
+            let facing_sector = <LittleEndian as ByteOrder>::read_i16(&data[sidedef_loc+28..sidedef_loc+30]);
+
+            sidedefs.push(SideDef {
+                x_offset,
+                y_offset,
+                upper_texture,
+                lower_texture,
+                middle_texture,
+                facing_sector,
+            });
+        }
+
         return sidedefs;
     }
 }
 
+impl Vertex {
+   fn from_bytes(data: &Vec<u8>) -> Vec<Vertex> {
+        let mut vertices: Vec<Vertex> = Vec::new();
+
+        for i in 0..(data.len() / 4) {
+            let vert_loc: usize = i * 4;
+
+            let x = <LittleEndian as ByteOrder>::read_i16(&data[vert_loc..vert_loc+2]);
+            let y = <LittleEndian as ByteOrder>::read_i16(&data[vert_loc+2..vert_loc+4]);
+
+            vertices.push(Vertex {
+                x,
+                y,
+            });
+        }
+        
+        return vertices;
+   } 
+}
 fn main() {
     Wad::load("assets/freedoom1.wad");
 }
