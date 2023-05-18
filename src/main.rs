@@ -107,9 +107,25 @@ struct Seg {
     start: i16,
     end: i16,
 
-    // Angle in radians
+    // Angle in degrees
     angle: f64,
+
+    // What linedef is it a segment of
+    linedef_num: i16,
+    
+    // If true it's pointing in the opposite direction of the linedef
+    direction: bool,
+
+    // Distance along linedef to start seg
+    offset: i16,
 }
+
+// A SubSector is a convex part of a sector
+struct SubSector {
+    // The indexes to the segs used to build the subsector
+    segs: Vec<i16>,
+}
+
 impl Wad {
     // Loads the file into a struct
     fn load(path: &str) -> Wad {
@@ -178,6 +194,7 @@ impl BspMap {
         let linedefs: Vec<LineDef> = LineDef::from_bytes(&data[2]);
         let sidedefs: Vec<SideDef> = SideDef::from_bytes(&data[3]);
         let vertices: Vec<Vertex> = Vertex::from_bytes(&data[4]);
+        let segs: Vec<Seg> = Seg::from_bytes(&data[5]);
         BspMap {
             things,
             linedefs,
@@ -348,6 +365,46 @@ impl Vertex {
         return vertices;
    } 
 }
+
+impl Seg {
+    fn from_bytes(data: &Vec<u8>) -> Vec<Seg> {
+        let mut segs: Vec<Seg> = Vec::new();
+
+        for i in 0..(data.len() / 12) {
+            let seg_loc: usize = i * 12;
+
+            let start = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc..seg_loc+2]);
+            let end = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc+2..seg_loc+4]);
+
+            // The 16 bit binary angle which goes from -32768 to 32767
+            let bin_angle = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc+4..seg_loc+6]);
+
+            // The degree angle I will use
+            let angle = bin_angle as f64 * 45.0 / 8192.0;
+
+
+            let linedef_num = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc+6..seg_loc+8]);
+
+            // Converts direction to a boolean
+            let int_direction = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc+8..seg_loc+10]);
+            let direction = int_direction == 1;
+            
+            let offset = <LittleEndian as ByteOrder>::read_i16(&data[seg_loc+10..seg_loc+12]);
+
+            segs.push(Seg {
+                start,
+                end,
+                angle,
+                linedef_num,
+                direction,
+                offset,
+            })
+        }
+
+        return segs;
+    }
+}
+
 fn main() {
     Wad::load("assets/freedoom1.wad");
 }
