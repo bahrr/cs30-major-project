@@ -23,6 +23,8 @@ struct  BspMap {
     linedefs: Vec<LineDef>,
     sidedefs: Vec<SideDef>,
     vertices: Vec<Vertex>,
+    segs: Vec<Seg>,
+    subsectors: Vec<SubSector>,
 }
 
 // Holds onto raw lump data
@@ -195,11 +197,15 @@ impl BspMap {
         let sidedefs: Vec<SideDef> = SideDef::from_bytes(&data[3]);
         let vertices: Vec<Vertex> = Vertex::from_bytes(&data[4]);
         let segs: Vec<Seg> = Seg::from_bytes(&data[5]);
+        let subsectors: Vec<SubSector> = SubSector::from_bytes(&data[6]);
+
         BspMap {
             things,
             linedefs,
             sidedefs,
             vertices,
+            segs,
+            subsectors,
          }
     } 
 }
@@ -403,6 +409,16 @@ impl Seg {
 
         return segs;
     }
+}
+
+impl SubSector {
+   fn from_bytes(data: &Vec<u8>) -> Vec<SubSector> {
+        let mut subsectors: Vec<SubSector> = Vec::new();
+
+        
+
+        return subsectors;
+   }
 }
 
 fn main() {
