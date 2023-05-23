@@ -415,7 +415,14 @@ impl SubSector {
    fn from_bytes(data: &Vec<u8>) -> Vec<SubSector> {
         let mut subsectors: Vec<SubSector> = Vec::new();
 
-        
+        // TODO: make an algorithm which doesn't hurt to read
+        let mut i = 0;
+        while i < data.len() {
+            // How many segs in the subsector
+            let seg_count = <LittleEndian as ByteOrder>::read_i16(&data[i..i+2]) as usize;
+            println!("seg count: {seg_count}");
+            i += 4;
+        }
 
         return subsectors;
    }
