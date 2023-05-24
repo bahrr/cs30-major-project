@@ -124,8 +124,14 @@ struct Seg {
 
 // A SubSector is a convex part of a sector
 struct SubSector {
-    // The indexes to the segs used to build the subsector
-    segs: Vec<i16>,
+    ssec_size: i16, // How many sides are in the subsector
+    first_seg: i16, // Index to first seg, also used to find which sector it's in
+}
+
+// A Node is a point which either splits a branch in a BSP tree
+// or points toward a subsector
+struct Node {
+    
 }
 
 impl Wad {
@@ -415,15 +421,18 @@ impl SubSector {
    fn from_bytes(data: &Vec<u8>) -> Vec<SubSector> {
         let mut subsectors: Vec<SubSector> = Vec::new();
 
-        // TODO: make an algorithm which doesn't hurt to read
-        let mut i = 0;
-        while i < data.len() {
-            // How many segs in the subsector
-            let seg_count = <LittleEndian as ByteOrder>::read_i16(&data[i..i+2]) as usize;
-            println!("seg count: {seg_count}");
-            i += 4;
-        }
+        for i in 0..(data.len() / 4) {
+            let ssec_loc: usize = i * 4;
 
+            let ssec_size = <LittleEndian as ByteOrder>::read_i16(&data[ssec_loc..ssec_loc+2]);
+            let first_seg = <LittleEndian as ByteOrder>::read_i16(&data[ssec_loc+2..ssec_loc+4]);
+            println!("{ssec_size}, {first_seg}");
+
+            subsectors.push(SubSector{
+                ssec_size,
+                first_seg,
+            })
+        }
         return subsectors;
    }
 }
