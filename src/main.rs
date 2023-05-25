@@ -128,10 +128,23 @@ struct SubSector {
     first_seg: i16, // Index to first seg, also used to find which sector it's in
 }
 
-// A Node is a point which either splits a branch in a BSP tree
-// or points toward a subsector
+// A Node is a line which splits the map into 2 smaller nodes
 struct Node {
-    
+    start: Vec<i16>, // Start location of line
+    change: Vec<i16>, // Change in the line coordinates
+
+    right_box: Vec<i16>, // Bounding box for right branch
+    left_box: Vec<i16>, // Bounding box for left branch
+
+    // If right_is_node is true then it gives the index to another node
+    // If not, then it gives the index to a subsector
+    right_is_node: bool,
+    right_index: i16,
+
+    // If left_is_node is true then it gives the index to another node
+    // If not, then it gives the index to a subsector
+    left_is_node: bool,
+    left_index: i16,
 }
 
 impl Wad {
@@ -437,6 +450,32 @@ impl SubSector {
    }
 }
 
+impl Node {
+    fn from_bytes(data: &Vec<u8>) -> Vec<Node> {
+        let mut nodes: Vec<Node> = Vec::new();
+
+        for i in 0..(data.len() / 28) {
+            let node_loc: usize = i * 28;
+
+            let start = vec![
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc..node_loc+2]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+2..node_loc+4]),
+            ];
+
+            let change = vec![
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+4..node_loc+6]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+6..node_loc+8]),
+            ];
+
+            let mut right_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+8..node_loc+10]);
+            if right_index > 0 {
+
+            }
+        }
+
+        return nodes;
+    }
+}
 fn main() {
     Wad::load("assets/freedoom1.wad");
 }
