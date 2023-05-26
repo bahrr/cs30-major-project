@@ -25,6 +25,7 @@ struct  BspMap {
     vertices: Vec<Vertex>,
     segs: Vec<Seg>,
     subsectors: Vec<SubSector>,
+    nodes: Vec<Node>,
 }
 
 // Holds onto raw lump data
@@ -139,7 +140,7 @@ struct Node {
     // If right_is_node is true then it gives the index to another node
     // If not, then it gives the index to a subsector
     right_is_node: bool,
-    right_index: i16,
+    right_child: i16,
 
     // If left_is_node is true then it gives the index to another node
     // If not, then it gives the index to a subsector
@@ -217,6 +218,7 @@ impl BspMap {
         let vertices: Vec<Vertex> = Vertex::from_bytes(&data[4]);
         let segs: Vec<Seg> = Seg::from_bytes(&data[5]);
         let subsectors: Vec<SubSector> = SubSector::from_bytes(&data[6]);
+        let nodes: Vec<Node> = Node::from_bytes(&data[7]);
 
         BspMap {
             things,
@@ -225,6 +227,7 @@ impl BspMap {
             vertices,
             segs,
             subsectors,
+            nodes,
          }
     } 
 }
@@ -439,7 +442,6 @@ impl SubSector {
 
             let ssec_size = <LittleEndian as ByteOrder>::read_i16(&data[ssec_loc..ssec_loc+2]);
             let first_seg = <LittleEndian as ByteOrder>::read_i16(&data[ssec_loc+2..ssec_loc+4]);
-            println!("{ssec_size}, {first_seg}");
 
             subsectors.push(SubSector{
                 ssec_size,
@@ -466,11 +468,28 @@ impl Node {
                 <LittleEndian as ByteOrder>::read_i16(&data[node_loc+4..node_loc+6]),
                 <LittleEndian as ByteOrder>::read_i16(&data[node_loc+6..node_loc+8]),
             ];
+            let right_box = vec![
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+8..node_loc+10]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+10..node_loc+12]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+12..node_loc+14]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+14..node_loc+16]),
+            ];
 
-            let mut right_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+8..node_loc+10]);
-            if right_index > 0 {
+            let left_box = vec![
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+16..node_loc+18]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+18..node_loc+20]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+20..node_loc+22]),
+                <LittleEndian as ByteOrder>::read_i16(&data[node_loc+22..node_loc+24]),
+            ];
 
+            let mut right_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+24..node_loc+26]);
+            println!("{right_index}");
+            let right_is_node = right_index < 0;
+            if !right_is_node {
+                right_index = (32768 + right_index as u16) as i16;
             }
+
+            println!("result: {right_index}");
         }
 
         return nodes;
