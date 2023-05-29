@@ -140,7 +140,7 @@ struct Node {
     // If right_is_node is true then it gives the index to another node
     // If not, then it gives the index to a subsector
     right_is_node: bool,
-    right_child: i16,
+    right_index: i16,
 
     // If left_is_node is true then it gives the index to another node
     // If not, then it gives the index to a subsector
@@ -148,6 +148,22 @@ struct Node {
     left_index: i16,
 }
 
+// A Sector is an area referenced by a Sidedef
+struct Sector {
+    // Heights of the floor and ceiling
+    floor_height: i16,
+    ceiling_height: i16,
+
+    // Names of textures used
+    floor_texture: String,
+    ceiling_texture: String,
+
+    light_level: i16, // How much light is in the sector
+
+    special_type: i16, // Used for a lot of effects like blinking lights
+
+    tag_number: i16, // Used for other special effects
+}
 impl Wad {
     // Loads the file into a struct
     fn load(path: &str) -> Wad {
@@ -483,13 +499,29 @@ impl Node {
             ];
 
             let mut right_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+24..node_loc+26]);
-            println!("{right_index}");
             let right_is_node = right_index < 0;
-            if !right_is_node {
-                right_index = (32768 + right_index as u16) as i16;
+            if right_is_node {
+                // Extremely stupid trick but I guess it works
+                right_index = (right_index as i32  + 32768) as i16;
             }
 
-            println!("result: {right_index}");
+            let mut left_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+26..node_loc+28]);
+            let left_is_node = left_index < 0;
+            if left_is_node {
+                // Extremely stupid trick but I guess it works
+                left_index = (left_index as i32  + 32768) as i16;
+            }
+
+            nodes.push(Node {
+                start,
+                change,
+                right_box,
+                left_box,
+                right_is_node,
+                right_index,
+                left_is_node,
+                left_index,
+            })
         }
 
         return nodes;
