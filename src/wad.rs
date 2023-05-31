@@ -20,6 +20,12 @@ pub struct Wad {
 // Struct which stores Doom maps
 pub struct  BspMap {
     pub things: Vec<Thing>,
+    // Player spawn locations
+    pub p1_spawn: Vertex, 
+    pub p2_spawn: Vertex, 
+    pub p3_spawn: Vertex, 
+    pub p4_spawn: Vertex, 
+
     pub linedefs: Vec<LineDef>,
     pub sidedefs: Vec<SideDef>,
     pub vertices: Vec<Vertex>,
@@ -235,6 +241,28 @@ impl Wad {
 impl BspMap {
     fn new(data: &Vec<Vec<u8>>) -> BspMap {
         let things: Vec<Thing> = Thing::from_bytes(&data[1]);
+
+        // Just in case there is no spawn
+        let mut p1_spawn = Vertex{x: 0, y: 0};
+        let mut p2_spawn = Vertex{x: 0, y: 0};
+        let mut p3_spawn = Vertex{x: 0, y: 0};
+        let mut p4_spawn = Vertex{x: 0, y: 0};
+
+        for thing in things.iter() {
+            if thing.thing_type == 1 {
+                p1_spawn = Vertex{x :thing.x, y: thing.y};
+            }
+            if thing.thing_type == 2 {
+                p2_spawn = Vertex{x :thing.x, y: thing.y};
+            }
+            if thing.thing_type == 3 {
+                p3_spawn = Vertex{x :thing.x, y: thing.y};
+            }
+            if thing.thing_type == 4 {
+                p4_spawn = Vertex{x :thing.x, y: thing.y};
+            }
+        }
+
         let linedefs: Vec<LineDef> = LineDef::from_bytes(&data[2]);
         let sidedefs: Vec<SideDef> = SideDef::from_bytes(&data[3]);
         let vertices: Vec<Vertex> = Vertex::from_bytes(&data[4]);
@@ -245,6 +273,10 @@ impl BspMap {
 
         BspMap {
             things,
+            p1_spawn,
+            p2_spawn,
+            p3_spawn,
+            p4_spawn,
             linedefs,
             sidedefs,
             vertices,
@@ -253,7 +285,7 @@ impl BspMap {
             nodes,
             sectors,
          }
-    } 
+    }
 }
 
 impl Thing {
@@ -299,6 +331,10 @@ impl Thing {
         }
 
         return things;
+    }
+
+    fn get_spawn() -> Vertex {
+        return Vertex { x: 0, y: 0};
     }
 }
 
