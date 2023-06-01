@@ -8,5 +8,7 @@ fn main() {
     }
 
     let e1m1 = wad_file.maps.get("E1M1\0\0\0\0").unwrap();
-    println!("{}", e1m1.sectors.len());
+    // Get spawn location
+    let loc = &e1m1.p1_spawn;
+    e1m1.traverse_bsp(e1m1.nodes.len() - 1, loc, e1m1.p1_rot);
 }

@@ -9,6 +9,16 @@ fn bool_from_i16(int: i16, index: u32) -> bool {
     return int % i16::pow(2, index + 1) != 0;
 }
 
+// Checks if the vertex is in a bounding box
+fn check_box(loc: & Vertex, bounding_box: &Vec<i16>) -> bool {
+    return 
+        loc.y < bounding_box[0] &&
+        loc.y > bounding_box[1] &&
+        loc.x > bounding_box[2] &&
+        loc.x < bounding_box[3]
+    ;
+}
+
 // A WAD is the primary way that Doom and it's source ports store data
 pub struct Wad {
     // Header of the WAD file, used for identifying details
@@ -20,11 +30,15 @@ pub struct Wad {
 // Struct which stores Doom maps
 pub struct  BspMap {
     pub things: Vec<Thing>,
-    // Player spawn locations
+    // Player spawn locations and rotations
     pub p1_spawn: Vertex, 
+    pub p1_rot: i16,
     pub p2_spawn: Vertex, 
+    pub p2_rot: i16,
     pub p3_spawn: Vertex, 
+    pub p3_rot: i16,
     pub p4_spawn: Vertex, 
+    pub p4_rot: i16,
 
     pub linedefs: Vec<LineDef>,
     pub sidedefs: Vec<SideDef>,
@@ -107,8 +121,8 @@ pub struct SideDef {
 
 // Might as well make it easy to access the coordinates as x and y
 pub struct Vertex {
-    x: i16,
-    y: i16,
+    pub x: i16,
+    pub y: i16,
 }
 
 //  A Seg is a segment of a linedef which is used to build a subsector
@@ -144,14 +158,14 @@ pub struct Node {
     right_box: Vec<i16>, // Bounding box for right branch
     left_box: Vec<i16>, // Bounding box for left branch
 
-    // If right_is_node is true then it gives the index to another node
-    // If not, then it gives the index to a subsector
-    right_is_node: bool,
+    // If right_is_ssec is true then it gives the index to a subsector
+    // If not, then it gives the index to another node
+    right_is_ssec: bool,
     right_index: i16,
 
-    // If left_is_node is true then it gives the index to another node
-    // If not, then it gives the index to a subsector
-    left_is_node: bool,
+    // If left_is_ssec is true then it gives the index to a subsector
+    // If not, then it gives the index to another node
+    left_is_ssec: bool,
     left_index: i16,
 }
 
@@ -244,22 +258,30 @@ impl BspMap {
 
         // Just in case there is no spawn
         let mut p1_spawn = Vertex{x: 0, y: 0};
+        let mut p1_rot: i16 = 0;
         let mut p2_spawn = Vertex{x: 0, y: 0};
+        let mut p2_rot: i16 = 0;
         let mut p3_spawn = Vertex{x: 0, y: 0};
+        let mut p3_rot: i16 = 0;
         let mut p4_spawn = Vertex{x: 0, y: 0};
+        let mut p4_rot: i16 = 0;
 
         for thing in things.iter() {
             if thing.thing_type == 1 {
                 p1_spawn = Vertex{x :thing.x, y: thing.y};
+                p1_rot = thing.angle;
             }
             if thing.thing_type == 2 {
                 p2_spawn = Vertex{x :thing.x, y: thing.y};
+                p2_rot = thing.angle;
             }
             if thing.thing_type == 3 {
                 p3_spawn = Vertex{x :thing.x, y: thing.y};
+                p3_rot = thing.angle;
             }
             if thing.thing_type == 4 {
                 p4_spawn = Vertex{x :thing.x, y: thing.y};
+                p4_rot = thing.angle;
             }
         }
 
@@ -274,9 +296,13 @@ impl BspMap {
         BspMap {
             things,
             p1_spawn,
+            p1_rot,
             p2_spawn,
+            p2_rot,
             p3_spawn,
+            p3_rot,
             p4_spawn,
+            p4_rot,
             linedefs,
             sidedefs,
             vertices,
@@ -285,6 +311,29 @@ impl BspMap {
             nodes,
             sectors,
          }
+    }
+
+    // The cool part of the program the bsp traversal
+    pub fn traverse_bsp(&self, node: usize, loc: &Vertex, rot: i16) -> Vec<i16> {
+        // Vector which the indexes to be rendered
+        let mut visible: Vec<i16> = Vec::new();
+        let current_node = &self.nodes[node];
+
+        if !check_box(loc, &current_node.left_box) {
+            println!("right");
+            if !current_node.right_is_ssec {
+                self.traverse_bsp(current_node.right_index as usize, loc, rot);
+            }
+        }
+
+        if !check_box(loc, &self.nodes[node].right_box) {
+            println!("left");
+            if !current_node.left_is_ssec {
+                self.traverse_bsp(current_node.left_index as usize, loc, rot);
+            }
+        }
+
+        return  visible;
     }
 }
 
@@ -331,10 +380,6 @@ impl Thing {
         }
 
         return things;
-    }
-
-    fn get_spawn() -> Vertex {
-        return Vertex { x: 0, y: 0};
     }
 }
 
@@ -543,15 +588,15 @@ impl Node {
             ];
 
             let mut right_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+24..node_loc+26]);
-            let right_is_node = right_index < 0;
-            if right_is_node {
+            let right_is_ssec = right_index < 0;
+            if right_is_ssec {
                 // Extremely stupid trick but I guess it works
                 right_index = (right_index as i32  + 32768) as i16;
             }
 
             let mut left_index = <LittleEndian as ByteOrder>::read_i16(&data[node_loc+26..node_loc+28]);
-            let left_is_node = left_index < 0;
-            if left_is_node {
+            let left_is_ssec = left_index < 0;
+            if left_is_ssec {
                 // Extremely stupid trick but I guess it works
                 left_index = (left_index as i32  + 32768) as i16;
             }
@@ -561,9 +606,9 @@ impl Node {
                 change,
                 right_box,
                 left_box,
-                right_is_node,
+                right_is_ssec,
                 right_index,
-                left_is_node,
+                left_is_ssec,
                 left_index,
             })
         }
