@@ -19,6 +19,12 @@ fn check_box(loc: & Vertex, bounding_box: &Vec<i16>) -> bool {
     ;
 }
 
+// Returns 0 if to the left, 1 to the right
+fn check_line(start: Vec<i16>, change: Vec<i16>, loc: &Vertex) {
+    let result = (loc.x - start[0]) * (change[1] - start[1] - (loc.y - start[1]) * (change[0] - start[0]));
+    println!("{result}");
+}
+
 // A WAD is the primary way that Doom and it's source ports store data
 pub struct Wad {
     // Header of the WAD file, used for identifying details
@@ -315,25 +321,16 @@ impl BspMap {
 
     // The cool part of the program the bsp traversal
     pub fn traverse_bsp(&self, node: usize, loc: &Vertex, rot: i16) -> Vec<i16> {
-        // Vector which the indexes to be rendered
-        let mut visible: Vec<i16> = Vec::new();
+
+        // Final list of subsector indexes to read from
+        let sorted_ssecs: Vec<i16> = Vec::new();
+
+        // Just to make life a bit simpler
         let current_node = &self.nodes[node];
 
-        if !check_box(loc, &current_node.left_box) {
-            println!("right");
-            if !current_node.right_is_ssec {
-                self.traverse_bsp(current_node.right_index as usize, loc, rot);
-            }
-        }
+        check_line(current_node.start, current_node.change, loc);
 
-        if !check_box(loc, &self.nodes[node].right_box) {
-            println!("left");
-            if !current_node.left_is_ssec {
-                self.traverse_bsp(current_node.left_index as usize, loc, rot);
-            }
-        }
-
-        return  visible;
+        return sorted_ssecs;
     }
 }
 
