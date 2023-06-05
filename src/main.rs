@@ -11,5 +11,5 @@ fn main() {
     // Get spawn location
     let loc = &e1m1.p1_spawn;
 
-    let sorted_ssecs = e1m1.traverse_bsp(&e1m1.nodes.len() - 1, loc, e1m1.p1_rot);
+    let sorted_ssecs = e1m1.traverse_bsp(485, loc, e1m1.p1_rot);
 }

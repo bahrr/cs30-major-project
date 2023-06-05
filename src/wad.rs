@@ -10,7 +10,7 @@ fn bool_from_i16(int: i16, index: u32) -> bool {
 }
 
 // Checks if the vertex is in a bounding box
-fn check_box(loc: & Vertex, bounding_box: &Vec<i16>) -> bool {
+fn check_box(loc: &Vertex, bounding_box: &Vec<i16>) -> bool {
     return 
         loc.y < bounding_box[0] &&
         loc.y > bounding_box[1] &&
@@ -20,9 +20,8 @@ fn check_box(loc: & Vertex, bounding_box: &Vec<i16>) -> bool {
 }
 
 // Returns 0 if to the left, 1 to the right
-fn check_line(start: Vec<i16>, change: Vec<i16>, loc: &Vertex) {
-    let result = (loc.x - start[0]) * (change[1] - start[1] - (loc.y - start[1]) * (change[0] - start[0]));
-    println!("{result}");
+fn check_line(start: &Vec<i16>, change: &Vec<i16>, loc: &Vertex) {
+    let slope = change[1] - start[1] / change[]
 }
 
 // A WAD is the primary way that Doom and it's source ports store data
@@ -328,7 +327,7 @@ impl BspMap {
         // Just to make life a bit simpler
         let current_node = &self.nodes[node];
 
-        check_line(current_node.start, current_node.change, loc);
+        check_line(&current_node.start, &current_node.change, loc);
 
         return sorted_ssecs;
     }
