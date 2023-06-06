@@ -21,7 +21,14 @@ fn check_box(loc: &Vertex, bounding_box: &Vec<i16>) -> bool {
 
 // Returns 0 if to the left, 1 to the right
 fn check_line(start: &Vec<i16>, change: &Vec<i16>, loc: &Vertex) {
-    let slope = change[1] - start[1] / change[]
+    let mut slope: i16 = 0;
+    // Checks for vertical lines
+    if change[0] == 0 {
+        slope = 0;
+    }
+    else {
+        slope = change[1] / change[0];
+    }
 }
 
 // A WAD is the primary way that Doom and it's source ports store data
