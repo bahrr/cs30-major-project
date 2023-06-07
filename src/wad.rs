@@ -19,15 +19,34 @@ fn check_box(loc: &Vertex, bounding_box: &Vec<i16>) -> bool {
     ;
 }
 
-// Returns 0 if to the left, 1 to the right
-fn check_line(start: &Vec<i16>, change: &Vec<i16>, loc: &Vertex) {
+// Returns false if to the left, true to the right
+fn check_line(start: &Vec<i16>, change: &Vec<i16>, loc: &Vertex) -> bool {
     let mut slope: i16 = 0;
-    // Checks for vertical lines
+
+    // Just in case it's vertical
+    let mut is_vertical = false;
     if change[0] == 0 {
-        slope = 0;
+        is_vertical = true;
     }
     else {
         slope = change[1] / change[0];
+    }
+
+    let invert = change[1] < 0;
+
+    if is_vertical {
+        return (loc.x > start[0]) != invert;
+    }
+
+    else if slope == 0 {
+        return (loc.y < start[1]) != (change[0] < 0);
+    }
+    
+    else {
+        let y_intercept = start[1] - slope * start[0];
+        let line_x = (loc.y - y_intercept) / slope;
+        
+        return (loc.x > line_x) != invert;
     }
 }
 
@@ -329,13 +348,37 @@ impl BspMap {
     pub fn traverse_bsp(&self, node: usize, loc: &Vertex, rot: i16) -> Vec<i16> {
 
         // Final list of subsector indexes to read from
-        let sorted_ssecs: Vec<i16> = Vec::new();
+        let mut sorted_ssecs: Vec<i16> = Vec::new();
 
         // Just to make life a bit simpler
         let current_node = &self.nodes[node];
 
-        check_line(&current_node.start, &current_node.change, loc);
+        let side = check_line(&current_node.start, &current_node.change, loc);
 
+        if side {
+            if current_node.right_is_ssec {
+                sorted_ssecs.push(current_node.right_index);
+            }
+            if current_node.left_is_ssec {
+                sorted_ssecs.push(current_node.left_index);
+            }
+            else {
+                sorted_ssecs.append(&mut self.traverse_bsp(current_node.right_index as usize, loc, rot));
+            }
+            sorted_ssecs.append(&mut self.traverse_bsp(current_node.left_index as usize, loc, rot));
+        }
+        else {
+            if current_node.left_is_ssec {
+                sorted_ssecs.push(current_node.left_index);
+            }
+            if current_node.right_is_ssec {
+                sorted_ssecs.push(current_node.right_index);
+            }
+            else {
+                sorted_ssecs.append(&mut self.traverse_bsp(current_node.left_index as usize, loc, rot));
+            }
+            sorted_ssecs.append(&mut self.traverse_bsp(current_node.right_index as usize, loc, rot));
+        }
         return sorted_ssecs;
     }
 }

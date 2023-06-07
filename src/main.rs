@@ -12,4 +12,6 @@ fn main() {
     let loc = &e1m1.p1_spawn;
 
     let sorted_ssecs = e1m1.traverse_bsp(485, loc, e1m1.p1_rot);
+
+    println!("{:?}", sorted_ssecs);
 }
