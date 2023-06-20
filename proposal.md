@@ -7,11 +7,11 @@ Renders Doom Maps in Rust
 ## Needs To Have List
 
 - [x] Should be in Rust
-- [ ] Read WAD files
+- [x] Read WAD files
   - [x] Get WAD header working
   - [x] Convert directory to something more useful
   - [x] Convert every lump type into a struct
-- [ ] Render maps using some 3d graphics library
+- [started] Render maps using some 3d graphics library
   - [ ] Convert sidedefs, sectors, and things into triangles so that modern graphics APIs can use them
     - [ ] If the graphics library doesn't have triangulation, I'll probably end up using the ear clipping method
   - [x] Use binary space partitioning to cut down on the number of polygons rendered at a time
